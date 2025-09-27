@@ -1,0 +1,29 @@
+.chat-bubble { 
+  max-width: 80%; 
+  border-radius:18px; 
+  padding:12px 16px; 
+  margin-bottom:12px;
+}
+.user-bubble { 
+  background:#3b82f6; 
+  color:white; 
+  align-self:flex-end;
+}
+.bot-bubble { 
+  background:#f3f4f6; 
+  color:#1f2937; 
+  align-self:flex-start;
+}
+#vanta-bg { 
+  position:absolute; 
+  inset:0; 
+  z-index:-1; 
+  opacity:.1;
+}
+.language-flag { 
+  width: 24px; 
+  height:18px; 
+  border-radius:4px; 
+  margin-right:6px; 
+  object-fit:cover;
+}

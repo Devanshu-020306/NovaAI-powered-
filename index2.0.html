@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>College Chatbot</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta/dist/vanta.waves.min.js"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f3f4f6;}
+    #vanta-bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index:-1; }
+    #chat-container { max-width:600px; margin:50px auto; background:#fff; border-radius:8px; overflow-y:auto; padding:20px; height:70vh; }
+    .chat-bubble { margin:8px 0; padding:10px 15px; border-radius:20px; max-width:75%; }
+    .user-bubble { background:#3b82f6; color:white; margin-left:auto; }
+    .bot-bubble { background:#e5e7eb; color:black; margin-right:auto; }
+    #input-area { max-width:600px; margin:0 auto; display:flex; gap:8px; }
+    #chat-input { flex:1; padding:10px; border:1px solid #ccc; border-radius:20px; }
+    #send-btn, #mic-btn { padding:10px 15px; border:none; border-radius:50%; cursor:pointer; }
+    #mic-btn.bg-gray-200 {background:#e5e7eb; color:#374151;}
+    #mic-btn.bg-red-500 {background:#ef4444; color:white;}
+    #recording-status { text-align:center; font-size:14px; margin-top:5px; color:red; display:none; }
+  </style>
+</head>
+<body>
+<div id="vanta-bg"></div>
+
+<div id="chat-container"></div>
+<div id="input-area">
+  <input type="text" id="chat-input" placeholder="Type your message..." />
+  <button id="send-btn"><i data-feather="send"></i></button>
+  <button id="mic-btn" class="bg-gray-200 text-gray-700"><i data-feather="mic"></i></button>
+</div>
+<div id="recording-status">🎤 Listening...</div>
+
+<script>
+feather.replace();
+VANTA.WAVES({
+  el:"#vanta-bg",
+  color:0x3b82f6,
+  waveHeight:20,
+  shininess:50,
+  waveSpeed:0.5,
+  zoom:0.8
+});
+
+const chatContainer=document.getElementById('chat-container');
+const chatInput=document.getElementById('chat-input');
+const sendBtn=document.getElementById('send-btn');
+const micBtn=document.getElementById('mic-btn');
+const recordingStatus=document.getElementById('recording-status');
+
+let currentLang='en';
+let ttsLang='en-US';
+
+const responses={
+  en:{
+    fee:"Fee deadline is the 25th.",
+    scholarship:"Scholarship forms are at the admin office.",
+    timetable:"Updated timetable is on the notice board.",
+    cutoff:"Download the cutoff timetable here: <a href='https://example.com/cutoff.pdf' target='_blank'>Cutoff Timetable PDF</a>",
+    daily:"Daily life tip: attend lectures, eat before the cafeteria sells out, nap responsibly, and stay hydrated!",
+    college:"Our college campus is full of academic resources, friendly people, and engaging activities.",
+    campus:"The campus has a library, sports complex, hostels, gardens, cafeterias, and good WiFi to keep you connected.",
+    hostel:"Hostel info is available at the admin office.",
+    Events:"Events are listed on the notice board.",
+    library:"Library hours are 8am - 8pm, Mon-Sat.",
+    sports:"Sports facilities are open 6am-10pm daily.",
+    hello:"Hello! How can I assist you today?",
+    tell_me:"Sure! I can help with fees, scholarships, cutoffs, timetable, campus life and more!",
+    canteen:"Canteen is open 9am–7pm, famous for samosas and chai breaks!",
+    attendance:"Minimum attendance required is 75%. Don’t bunk too much!",
+    wifi:"Campus WiFi credentials are available at the IT Helpdesk.",
+    exams:"Exams are scheduled as per the academic calendar on the notice board.",
+    contact:"You can reach admin at admin@college.edu or +91-9876543210.",
+    transport:"College buses run from the city center every hour, 7am–8pm.",
+    placement:"Placement cell is in Block C, organizing workshops and internships.",
+    fest:"Our annual cultural fest is in March—music, dance, drama, and a ton of fun!",
+    medical:"Campus medical room is open 24/7. Emergency number: +91-9123456789.",
+    admission:"Admissions open in June. Forms are online or at the admin counter.",
+    default:"Hmm, I don’t know that yet. Try asking about scholarships, fees, cutoffs, or campus!"
+  },
+
+  hi:{
+    fee:"फीस जमा करने की अंतिम तिथि २५ तारीख है।",
+    scholarship:"स्कॉलरशिप फॉर्म प्रशासन कार्यालय में उपलब्ध हैं।",
+    timetable:"टाइमटेबल नोटिस बोर्ड पर है।",
+    cutoff:"कटऑफ टाइमटेबल यहाँ से डाउनलोड करें: <a href='https://example.com/cutoff.pdf' target='_blank'>डाउनलोड PDF</a>",
+    daily:"कॉलेज का डेली मंत्र: समय पर क्लास जाएँ, खाना खाएँ, पानी पिएँ और आराम करें!",
+    college:"हमारा कॉलेज संसाधनों और गतिविधियों से भरपूर है।",
+    campus:"कैंपस में पुस्तकालय, खेल कॉम्प्लेक्स, हॉस्टल, बगीचे, कैफ़ेटेरिया और वाईफाई उपलब्ध है।",
+    hostel:"हॉस्टल जानकारी प्रशासन कार्यालय में उपलब्ध है।",
+    Events:"कार्यक्रम नोटिस बोर्ड पर सूचीबद्ध हैं।",
+    library:"पुस्तकालय समय सोम–शनि 8am–8pm है।",
+    sports:"खेल सुविधाएं प्रतिदिन सुबह 6 से रात 10 बजे तक खुली रहती हैं।",
+    hello:"नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?",
+    tell_me:"मुझसे फीस, स्कॉलरशिप, कटऑफ, टाइमटेबल या कैंपस जानकारी पूछें।",
+    canteen:"कैंटीन सुबह 9 से शाम 7 तक खुला रहता है। वहाँ की समोसे और चाय मशहूर हैं!",
+    attendance:"कम से कम 75% उपस्थिति जरूरी है।",
+    wifi:"कैम्पस वाईफाई पासवर्ड आईटी हेल्पडेस्क से मिलता है।",
+    exams:"परीक्षाएं अकादमिक कैलेंडर के अनुसार होती हैं।",
+    contact:"प्रशासन से संपर्क: admin@college.edu या +91-9876543210।",
+    transport:"कॉलेज बसें सुबह 7 से रात 8 तक शहर के विभिन्न हिस्सों से चलती हैं।",
+    placement:"प्लेसमेंट सेल ब्लॉक सी में है। इंटरव्यू और ट्रेनिंग वहीं आयोजित होते हैं।",
+    fest:"वार्षिक सांस्कृतिक उत्सव मार्च में होता है।",
+    medical:"कैंपस मेडिकल रूम 24/7 खुला है। आपातकालीन नम्बर: +91-9123456789।",
+    admission:"प्रवेश जून में शुरू होते हैं। फॉर्म ऑनलाइन और कार्यालय पर मिलते हैं।",
+    default:"इसके बारे में मेरी जानकारी सीमित है। आप फीस, कटऑफ, टाइमटेबल या कैंपस पूछ सकते हैं।"
+  }
+};
+
+function changeLanguage(lang,voiceCode){
+  currentLang=lang;
+  ttsLang=voiceCode;
+  addMessage("✅ Language set to "+lang.toUpperCase(),'bot');
+}
+
+function addMessage(text,sender){
+  const d=document.createElement('div');
+  d.className=`chat-bubble ${sender}-bubble`;
+  d.innerHTML=`<p>${text}</p>`;
+  chatContainer.appendChild(d);
+  chatContainer.scrollTop=chatContainer.scrollHeight;
+}
+
+function findResponse(q){
+  const dict=responses[currentLang], msg=q.toLowerCase();
+  if(msg.includes("fee")) return dict.fee;
+  if(msg.includes("scholarship")) return dict.scholarship;
+  if(msg.includes("timetable")||msg.includes("schedule")) return dict.timetable;
+  if(msg.includes("cutoff")) return dict.cutoff;
+  if(msg.includes("daily")||msg.includes("life")) return dict.daily;
+  if(msg.includes("college")) return dict.college;
+  if(msg.includes("campus")) return dict.campus;
+  if(msg.includes("hostel")) return dict.hostel;
+  if(msg.includes("event")) return dict.Events;
+  if(msg.includes("library")) return dict.library;
+  if(msg.includes("sports")) return dict.sports;
+  if(msg.includes("canteen")||msg.includes("food")) return dict.canteen;
+  if(msg.includes("attendance")) return dict.attendance;
+  if(msg.includes("wifi")||msg.includes("internet")) return dict.wifi;
+  if(msg.includes("exam")) return dict.exams;
+  if(msg.includes("contact")||msg.includes("phone")||msg.includes("email")) return dict.contact;
+  if(msg.includes("bus")||msg.includes("transport")) return dict.transport;
+  if(msg.includes("placement")||msg.includes("job")) return dict.placement;
+  if(msg.includes("fest")||msg.includes("festival")||msg.includes("cultural")) return dict.fest;
+  if(msg.includes("medical")||msg.includes("doctor")||msg.includes("hospital")) return dict.medical;
+  if(msg.includes("admission")||msg.includes("apply")) return dict.admission;
+  if(msg.includes("hello")||msg.includes("hi")) return dict.hello;
+  return dict.default;
+}
+
+function sendMessage(){
+  const text=chatInput.value.trim();
+  if(!text) return;
+  addMessage(text,'user');
+  chatInput.value='';
+  const reply=findResponse(text);
+  addMessage(reply,'bot');
+  if('speechSynthesis' in window){
+    const u=new SpeechSynthesisUtterance(reply.replace(/<[^>]+>/g,'')); 
+    u.lang=ttsLang;
+    speechSynthesis.speak(u);
+  }
+}
+
+sendBtn.onclick=sendMessage;
+chatInput.onkeypress=e=>{if(e.key==='Enter')sendMessage();};
+
+if(annyang){
+  micBtn.onclick=()=>{
+    if(annyang.isListening()){
+      annyang.abort();
+      micBtn.classList.remove('bg-red-500','text-white');
+      micBtn.classList.add('bg-gray-200','text-gray-700');
+      recordingStatus.style.display='none';
+    } else {
+      annyang.setLanguage(ttsLang);
+      annyang.removeCommands();
+      annyang.addCommands({'*text':t=>{chatInput.value=t;sendMessage();}});
+      annyang.start();
+      micBtn.classList.remove('bg-gray-200','text-gray-700');
+      micBtn.classList.add('bg-red-500','text-white');
+      recordingStatus.style.display='block';
+    }
+  };
+}
+</script>
+</body>
+</html>

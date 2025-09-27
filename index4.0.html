@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nova Campus Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/annyang@2.6.0/dist/annyang.min.js"></script>
+  <style>
+    body,html {
+      margin:0; padding:0; height:100%;
+    }
+    #vanta-bg {
+      position:fixed; width:100%; height:100%; top:0; left:0;
+      z-index:-1;
+    }
+    #chat-container::-webkit-scrollbar {width:6px;}
+    #chat-container::-webkit-scrollbar-thumb {background:#cbd5e1; border-radius:4px;}
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen relative">
+
+  <!-- Animated Background -->
+  <div id="vanta-bg"></div>
+
+  <!-- Chat Window -->
+  <div class="flex flex-col bg-white rounded-lg shadow-2xl w-[90%] max-w-3xl h-[80vh] overflow-hidden">
+
+    <!-- Language Bar -->
+    <div class="flex space-x-2 p-2 bg-indigo-50 overflow-x-auto">
+      <button onclick="changeLanguage('en','en-US')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-blue-100 transition">🇬🇧 English</button>
+      <button onclick="changeLanguage('hi','hi-IN')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-yellow-100 transition">🇮🇳 हिंदी</button>
+      <button onclick="changeLanguage('bn','bn-IN')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-green-100 transition">🇧🇩 বাংলা</button>
+      <button onclick="changeLanguage('te','te-IN')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-purple-100 transition">🇮🇳 తెలుగు</button>
+      <button onclick="changeLanguage('mr','mr-IN')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-red-100 transition">🇮🇳 मराठी</button>
+      <button onclick="changeLanguage('raj','hi-IN')" class="flex items-center px-3 py-1 bg-white rounded-full text-sm hover:bg-teal-100 transition">🇮🇳 राजस्थानी</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="chat-container" class="flex-grow overflow-y-auto p-4 space-y-2">
+      <div class="bg-indigo-100 p-3 rounded-xl w-fit">👋 Hello! Select a language and ask your campus question.</div>
+    </div>
+
+    <!-- Input -->
+    <div class="p-4 bg-white border-t">
+      <div class="flex items-center space-x-2">
+        <input id="chat-input" placeholder="Type your message..."
+          class="flex-grow px-4 py-2 border rounded-full shadow-sm focus:ring-2 focus:ring-indigo-400 transition"/>
+        <button id="send-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-full shadow-md transition transform hover:scale-105">
+          <i data-feather="send"></i>
+        </button>
+        <button id="mic-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-full shadow-md transition transform hover:scale-105">
+          <i data-feather="mic"></i>
+        </button>
+      </div>
+      <div id="recording-status" class="text-xs text-gray-500 mt-1 hidden">🎤 Listening...</div>
+    </div>
+  </div>
+
+<script>
+feather.replace();
+
+// 🌊 VANTA Background
+let vantaEffect = VANTA.WAVES({
+  el: "#vanta-bg",
+  color: 0x3b82f6,
+  waveHeight: 20,
+  shininess: 50,
+  waveSpeed: 0.5,
+  zoom: 0.8
+});
+
+function setBackground(lang){
+  if(vantaEffect) vantaEffect.destroy();
+  let color=0x3b82f6;
+  if(lang==="hi") color=0xf59e0b;
+  if(lang==="bn") color=0x10b981;
+  if(lang==="te") color=0x8b5cf6;
+  if(lang==="mr") color=0xef4444;
+  if(lang==="raj") color=0x14b8a6;
+  vantaEffect = VANTA.WAVES({ el:"#vanta-bg", color:color, waveHeight:20, shininess:50, waveSpeed:0.5, zoom:0.8 });
+}
+
+// 🌍 Language state
+let currentLang="en", ttsLang="en-US", sttLang="en-US";
+
+// 📚 Responses
+const responses={
+  en:{hello:"Hello! How can I help?",fee:"Fee deadline is the 25th.",scholarship:"Scholarship forms at admin office.",timetable:"Timetable is on the notice board.",cutoff:"Download cutoff <a href='#'>PDF</a>",default:"I don’t know that yet."},
+  hi:{hello:"नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?",fee:"फीस जमा करने की अंतिम तिथि २५ है।",scholarship:"स्कॉलरशिप फॉर्म दफ्तर में हैं।",timetable:"टाइमटेबल नोटिस बोर्ड पर है।",cutoff:"कटऑफ डाउनलोड करें <a href='#'>PDF</a>",default:"मुझे ज्ञात नहीं।"},
+  bn:{hello:"হ্যালো! আমি কীভাবে সাহায্য করতে পারি?",fee:"ফি জমার শেষ তারিখ ২৫।",scholarship:"স্কলারশিপ ফর্ম অফিসে আছে।",timetable:"রুটিন নোটিস বোর্ডে আছে।",cutoff:"কাটঅফ ডাউনলোড <a href='#'>PDF</a>",default:"আমি জানি না।"},
+  te:{hello:"హలో! నేను ఎలా సహాయం చెయ్యగలను?",fee:"ఫీజు చివరి తేదీ 25.",scholarship:"స్కాలర్షిప్ ఫారామ్ కార్యాలయంలో ఉన్నాయి.",timetable:"సమయ పట్టిక నోటీసు బోర్డులో ఉంది.",cutoff:"కట్-ఆఫ్ <a href='#'>డౌన్లోడ్</a>",default:"నాకు తెలియదు."},
+  mr:{hello:"नमस्कार! मी कशी मदत करू शकतो?",fee:"फी भरण्याची शेवटची तारीख २५.",scholarship:"शिष्यवृत्ती फॉर्म ऑफिस मध्ये आहेत.",timetable:"वेळापत्रक नोटिस बोर्डवर आहे.",cutoff:"कटऑफ डाउनलोड <a href='#'>PDF</a>",default:"मला माहित नाही."},
+  raj:{hello:"राम राम सा! म्हे थाने मदद कर सकूं?",fee:"फीस भरन री तारीख २५ छे।",scholarship:"स्कॉलरशिप फॉर्म ऑफिस में हैं।",timetable:"टाइमटेबल नोटिस बोर्ड पै है।",cutoff:"कटऑफ <a href='#'>डाउनलोड</a>",default:"म्हे नै खबर नी।"}
+};
+
+function changeLanguage(lang, voiceCode){
+  currentLang=lang; ttsLang=voiceCode; sttLang=voiceCode;
+  addMessage("✅ Language set to "+lang.toUpperCase(),"bot");
+  setBackground(lang);
+}
+
+// 💬 Add message
+function addMessage(text,sender){
+  const d=document.createElement("div");
+  d.className=`${sender==="bot"?"bg-gray-100":"bg-indigo-500 text-white ml-auto"} px-3 py-2 rounded-xl max-w-xs`;
+  d.innerHTML=text;
+  chatContainer.appendChild(d);
+  chatContainer.scrollTop=chatContainer.scrollHeight;
+}
+
+// 🔍 Find reply
+function findResponse(q){
+  const dict=responses[currentLang]||responses.en;
+  q=q.toLowerCase();
+  if(q.includes("hello")||q.includes("hi")||q.includes("नमस्ते")) return dict.hello;
+  if(q.includes("fee")) return dict.fee;
+  if(q.includes("scholar")) return dict.scholarship;
+  if(q.includes("time")||q.includes("exam")) return dict.timetable;
+  if(q.includes("cutoff")) return dict.cutoff;
+  return dict.default;
+}
+
+// 🔊 Speak
+function speak(text){
+  if("speechSynthesis" in window){
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g,''));
+    u.lang=ttsLang;
+    const voices=speechSynthesis.getVoices();
+    const match=voices.find(v=>v.lang===ttsLang);
+    if(match) u.voice=match;
+    speechSynthesis.speak(u);
+  }
+}
+
+// 🚀 Send flow
+const chatContainer=document.getElementById("chat-container");
+const chatInput=document.getElementById("chat-input");
+const sendBtn=document.getElementById("send-btn");
+const micBtn=document.getElementById("mic-btn");
+const recordingStatus=document.getElementById("recording-status");
+
+function sendMessage(){
+  const text=chatInput.value.trim();
+  if(!text) return;
+  addMessage(text,"user");
+  chatInput.value="";
+  const reply=findResponse(text);
+  addMessage(reply,"bot");
+  speak(reply);
+}
+
+sendBtn.onclick=sendMessage;
+chatInput.onkeypress=e=>{if(e.key==="Enter")sendMessage();};
+
+// 🎤 Mic
+if(annyang){
+  micBtn.onclick=()=>{
+    if(annyang.isListening()){
+      annyang.abort();
+      micBtn.classList.remove("bg-red-500","text-white");
+      micBtn.classList.add("bg-gray-200","text-gray-700");
+      recordingStatus.classList.add("hidden");
+    } else {
+      annyang.setLanguage(sttLang);
+      annyang.removeCommands();
+      annyang.addCommands({"*text":t=>{chatInput.value=t;sendMessage();}});
+      annyang.start();
+      micBtn.classList.remove("bg-gray-200","text-gray-700");
+      micBtn.classList.add("bg-red-500","text-white");
+      recordingStatus.classList.remove("hidden");
+    }
+  };
+}
+
+// Debug voices
+speechSynthesis.onvoiceschanged=()=>{console.log("Available voices:",speechSynthesis.getVoices());}
+</script>
+</body>
+</html>
